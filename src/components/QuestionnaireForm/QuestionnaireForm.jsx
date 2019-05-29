@@ -1,4 +1,6 @@
 import React, { Component } from 'react';
+import urlUtils from "../../util/url";
+
 
 import './QuestionnaireForm.css';
 
@@ -10,6 +12,13 @@ import QuantityInput from '../Inputs/QuantityInput/QuantityInput';
 import { findValueByPrefix } from '../../util/util.js';
 import OpenChoice from '../Inputs/OpenChoiceInput/OpenChoice';
 
+const state = urlUtils.getUrlParameter("state"); // session key
+const code = urlUtils.getUrlParameter("code"); // authorization code
+console.log(state);
+const params = JSON.parse(sessionStorage[state]); // load app session
+const tokenUri = params.tokenUri;
+const clientId = params.clientId;
+const secret = params.secret;
 
 export default class QuestionnaireForm extends Component {
     constructor(props) {
@@ -498,32 +507,84 @@ export default class QuestionnaireForm extends Component {
                 });
             }
         })
-        console.log(priorAuthClaim);
+        console.log(priorAuthClaim,'HEREEE',tokenUri);
         console.log(JSON.stringify(priorAuthClaim));
 
         priorAuthBundle.entry.unshift({ resource: priorAuthClaim })
 
-        const Http = new XMLHttpRequest();
-        // const priorAuthUrl = "https://davinci-prior-auth.logicahealth.org/fhir/Claim/$submit";
-        const priorAuthUrl = "http://3.92.187.150:9000/fhir/Claim/$submit";
-        Http.open("POST", priorAuthUrl);
-        Http.setRequestHeader("Content-Type", "application/fhir+json");
-        Http.send(JSON.stringify(priorAuthBundle));
-        Http.onreadystatechange = function() {
-            if (this.readyState === XMLHttpRequest.DONE) {
-                var message = "";
-                if (this.status === 200) {
-                    var claimResponse = JSON.parse(this.responseText);
-                    message = "Prior Authorization " + claimResponse.disposition + "\n";
-                    message += "Prior Authorization Number: " + claimResponse.preAuthRef;
-                } else {
-                    message = "Prior Authorization Request Failed."
-                }
-                console.log(message);
-                alert(message);
-                console.log(this.responseText);
+        /*creating token */
+        const tokenPost = new XMLHttpRequest();
+        var auth_response;
+        tokenPost.open("POST", tokenUri);
+        tokenPost.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        var data = `client_id=${clientId}&grant_type=password&username=john&password=john123`
+        
+        tokenPost.onload =   function (){
+        if (tokenPost.status === 200) {
+            try { 
+            auth_response = JSON.parse(tokenPost.responseText);
+            console.log("auth res--1243-", auth_response);
+            } catch (e) {
+            const errorMsg = "Failed to parse auth response";
+            document.body.innerText = errorMsg;
+            console.error(errorMsg);
+            return;
             }
-        }
+            /** creating cliam  */
+            const Http = new XMLHttpRequest();
+            // const priorAuthUrl = "https://davinci-prior-auth.logicahealth.org/fhir/Claim/$submit";
+            const priorAuthUrl = "http://3.92.187.150:9000/fhir/Claim/$submit";
+            Http.open("POST", priorAuthUrl);
+            Http.setRequestHeader("Content-Type", "application/fhir+json");
+            Http.setRequestHeader("Authorization", "Bearer "+auth_response.access_token);
+            Http.send(JSON.stringify(priorAuthBundle));
+            Http.onreadystatechange = function() {
+                if (this.readyState === XMLHttpRequest.DONE) {
+                    var message = "";
+                    if (this.status === 200) {
+                        var claimResponse = JSON.parse(this.responseText);
+                        message = "Prior Authoriza  tion " + claimResponse.disposition + "\n";
+                        message += "Prior Authorization Number: " + claimResponse.preAuthRef;
+                    } else {
+                        message = "Prior Authorization Request Failed."
+                    }
+                    console.log(message);
+                    alert(message);
+                    console.log(this.responseText);
+                }
+            }
+
+
+        }else {
+            const errorMsg = "Token post request failed. Returned status: " + tokenPost.status;
+            document.body.innerText = errorMsg;
+            console.error(errorMsg);
+            return;
+          }
+        };
+        tokenPost.send(data)
+        // const Http = new XMLHttpRequest();
+        // // const priorAuthUrl = "https://davinci-prior-auth.logicahealth.org/fhir/Claim/$submit";
+        // const priorAuthUrl = "http://3.92.187.150:9000/fhir/Claim/$submit";
+        // Http.open("POST", priorAuthUrl);
+        // Http.setRequestHeader("Content-Type", "application/fhir+json");
+        // Http.setRequestHeader("Authorization", "Bearer "+auth_response);
+        // Http.send(JSON.stringify(priorAuthBundle));
+        // Http.onreadystatechange = function() {
+        //     if (this.readyState === XMLHttpRequest.DONE) {
+        //         var message = "";
+        //         if (this.status === 200) {
+        //             var claimResponse = JSON.parse(this.responseText);
+        //             message = "Prior Authorization " + claimResponse.disposition + "\n";
+        //             message += "Prior Authorization Number: " + claimResponse.preAuthRef;
+        //         } else {
+        //             message = "Prior Authorization Request Failed."
+        //         }
+        //         console.log(message);
+        //         alert(message);
+        //         console.log(this.responseText);
+        //     }
+        // }
     }
 
     isEmptyAnswer(answer) {
