@@ -1,6 +1,19 @@
-.wrapper{
+/* .wrapper{
   display:block;
   margin-left:15px;
+} */
+.wrapper1{
+  width: 50%;
+  float: left;
+  display: block;
+  margin-left: 15px;
+  border-right: 1px solid #ccc;
+}
+.wrapper2{
+  width:50%;
+  float:left;
+  display:block;
+  margin-left:-20px;
 }
 html {
   scroll-behavior: smooth;
